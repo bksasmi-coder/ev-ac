@@ -1,0 +1,17 @@
+{
+  "short_name": "EV Manager",
+  "name": "EV Account Manager",
+  "description": "A PWA to track income, expenses, account balances, and view a profit and loss statement for your EV business.",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#4f46e5",
+  "background_color": "#f3f4f6"
+}

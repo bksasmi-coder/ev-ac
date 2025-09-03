@@ -1,0 +1,5 @@
+{
+  "name": "ev-bus-ac",
+  "description": "An account manager PWA for an EV business to track income, expenses, account balances (cash and loan), and view a profit and loss statement.",
+  "requestFramePermissions": []
+}
