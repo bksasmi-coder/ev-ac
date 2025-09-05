@@ -1,16 +1,16 @@
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Transaction, TransactionType, AccountType } from '../types';
 import Card from './Card';
 import CashIcon from './icons/CashIcon';
 import LoanIcon from './icons/LoanIcon';
 import TrashIcon from './icons/TrashIcon';
+import { useTransactionCalculations } from '../hooks/useTransactionCalculations';
 
 interface TransactionListProps {
   transactions: Transaction[];
   onEdit: (transaction: Transaction) => void;
   onDelete: (transaction: Transaction) => void;
-  loanBalance: number;
 }
 
 interface TransactionItemProps {
@@ -58,9 +58,18 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, onEdit, 
         }
     };
 
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLLIElement>) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onEdit(transaction);
+        }
+    };
+
     return (
         <li 
             className="flex items-center justify-between py-4 px-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors duration-150 group"
+            tabIndex={0}
+            onKeyDown={handleKeyDown}
         >
             <div className="flex items-center space-x-3 flex-grow overflow-hidden">
                 <button
@@ -68,7 +77,7 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, onEdit, 
                         e.stopPropagation();
                         onDelete(transaction);
                     }}
-                    className="p-2 rounded-full text-gray-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/50 dark:hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="p-2 rounded-full text-gray-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/50 dark:hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-red-500 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
                     aria-label={`Delete transaction: ${transaction.description}`}
                 >
                     <TrashIcon className="w-5 h-5" />
@@ -101,19 +110,12 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, onEdit, 
 };
 
 
-const TransactionList: React.FC<TransactionListProps> = ({ transactions, onEdit, onDelete, loanBalance }) => {
+const TransactionList: React.FC<TransactionListProps> = ({ transactions, onEdit, onDelete }) => {
+  const { incomeTransactions, expenseTransactions, loanTransactions, loanBalance } = useTransactionCalculations(transactions);
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('ne-NP', { style: 'currency', currency: 'NPR' }).format(amount);
   };
-
-  const { incomeTransactions, expenseTransactions, loanTransactions } = useMemo(() => {
-    const sortedTransactions = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    return {
-      incomeTransactions: sortedTransactions.filter(t => t.type === TransactionType.INCOME && t.account !== AccountType.LOAN),
-      expenseTransactions: sortedTransactions.filter(t => t.type === TransactionType.EXPENSE && t.account !== AccountType.LOAN),
-      loanTransactions: sortedTransactions.filter(t => t.account === AccountType.LOAN),
-    };
-  }, [transactions]);
 
   return (
     <Card title="Recent Transactions" className="h-full">

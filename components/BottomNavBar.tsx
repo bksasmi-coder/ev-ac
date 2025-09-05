@@ -2,8 +2,9 @@ import React from 'react';
 import HomeIcon from './icons/HomeIcon';
 import AddIcon from './icons/AddIcon';
 import ReportIcon from './icons/ReportIcon';
+import ServiceIcon from './icons/ServiceIcon';
 
-type View = 'dashboard' | 'report';
+type View = 'dashboard' | 'report' | 'service';
 
 interface BottomNavBarProps {
   activeView: View;
@@ -42,6 +43,12 @@ const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeView, onViewChange, o
         isActive={activeView === 'dashboard'}
         onClick={() => onViewChange('dashboard')}
       />
+      <NavItem
+        icon={<ReportIcon className="w-6 h-6" />}
+        label="Reports"
+        isActive={activeView === 'report'}
+        onClick={() => onViewChange('report')}
+      />
        <button 
           onClick={onAdd}
           className="relative -top-6 flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-full text-white shadow-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-indigo-500"
@@ -50,10 +57,10 @@ const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeView, onViewChange, o
           <AddIcon className="w-8 h-8" />
        </button>
       <NavItem
-        icon={<ReportIcon className="w-6 h-6" />}
-        label="Reports"
-        isActive={activeView === 'report'}
-        onClick={() => onViewChange('report')}
+        icon={<ServiceIcon className="w-6 h-6" />}
+        label="Service Log"
+        isActive={activeView === 'service'}
+        onClick={() => onViewChange('service')}
       />
     </nav>
   );

@@ -17,3 +17,33 @@ export interface Transaction {
   account: AccountType;
   date: string;
 }
+
+export enum ServiceType {
+  SERVICING = 'Servicing',
+  REPAIRING = 'Repairing',
+  TIRE = 'Tire',
+}
+
+export enum TireServiceType {
+  NEW = 'Tire New',
+  RESOLE = 'Tire Resole',
+  ROTATION = 'Tire Rotation',
+}
+
+export interface ServiceRecord {
+  id: string;
+  date: string;
+  odometer: number;
+  description: string;
+  cost: number;
+  notes?: string;
+  serviceTypes: ServiceType[];
+  tireCompany?: string;
+  tires?: {
+    fl: boolean;
+    fr: boolean;
+    rl: boolean;
+    rr: boolean;
+    spare: boolean;
+  };
+}

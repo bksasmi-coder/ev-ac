@@ -4,7 +4,7 @@ import { Transaction, TransactionType, AccountType } from '../types';
 import Card from './Card';
 import CashIcon from './icons/CashIcon';
 import LoanIcon from './icons/LoanIcon';
-import BackIcon from './icons/BackIcon';
+import { useTransactionCalculations } from '../hooks/useTransactionCalculations';
 
 // @ts-ignore
 declare const NepaliDate: any;
@@ -65,15 +65,12 @@ const ReportTransactionItem: React.FC<{ transaction: Transaction }> = ({ transac
 
 const MonthlyReport: React.FC<MonthlyReportProps> = ({ transactions }) => {
     const nepaliMonths = useMemo(() => {
-        // Attempt to get months from the library.
         if (typeof NepaliDate !== 'undefined' && Array.isArray(NepaliDate.bsMonths)) {
             const months = NepaliDate.bsMonths.map((month: any) => String(month || '').trim());
-            // Basic validation to ensure the library loaded correctly.
             if (months.length === 12 && months[0]) {
                  return months;
             }
         }
-        // If the library isn't ready or its data is invalid, fall back to a hardcoded list.
         return [
             'Baisakh', 'Jestha', 'Asar', 'Shrawan', 'Bhadra', 'Aswin', 
             'Kartik', 'Mangsir', 'Poush', 'Magh', 'Falgun', 'Chaitra'
@@ -82,14 +79,13 @@ const MonthlyReport: React.FC<MonthlyReportProps> = ({ transactions }) => {
 
     const { availableYears, defaultYear, defaultMonth } = useMemo(() => {
         if (typeof NepaliDate === 'undefined') {
-            const fallbackYear = new Date().getFullYear() + 57; // Rough estimate
+            const fallbackYear = new Date().getFullYear() + 57;
             const years = Array.from({ length: 10 }, (_, i) => fallbackYear + i);
             return { availableYears: years, defaultYear: fallbackYear, defaultMonth: 0 };
         }
 
         const now = new NepaliDate();
         const currentYear = now.getYear();
-        
         const years = Array.from({ length: 10 }, (_, i) => currentYear + i);
 
         return {
@@ -102,39 +98,15 @@ const MonthlyReport: React.FC<MonthlyReportProps> = ({ transactions }) => {
     const [selectedYear, setSelectedYear] = useState<number>(defaultYear);
     const [selectedMonth, setSelectedMonth] = useState<number>(defaultMonth);
 
-    const transactionsThisMonth = useMemo(() => {
-        if (typeof NepaliDate === 'undefined') return [];
-        return transactions.filter(t => {
-            try {
-                const nepaliTxDate = new NepaliDate(new Date(t.date));
-                return nepaliTxDate.getYear() === selectedYear && nepaliTxDate.getMonth() === selectedMonth;
-            } catch (e) {
-                return false;
-            }
-        });
-    }, [transactions, selectedYear, selectedMonth]);
+    const {
+        totalIncome,
+        totalExpenses,
+        incomeTransactions,
+        expenseTransactions,
+        loanTransactions,
+        sortedTransactions,
+    } = useTransactionCalculations(transactions, selectedMonth, selectedYear);
 
-    const { totalIncome, totalExpenses } = useMemo(() => {
-        return transactionsThisMonth.reduce((acc, t) => {
-            if (t.account !== AccountType.LOAN) { // Exclude loan transactions from P&L
-                if (t.type === TransactionType.INCOME) {
-                    acc.totalIncome += t.amount;
-                } else {
-                    acc.totalExpenses += t.amount;
-                }
-            }
-            return acc;
-        }, { totalIncome: 0, totalExpenses: 0 });
-    }, [transactionsThisMonth]);
-    
-    const { incomeTransactions, expenseTransactions, loanTransactions } = useMemo(() => {
-        const sorted = [...transactionsThisMonth].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        return {
-            incomeTransactions: sorted.filter(t => t.type === TransactionType.INCOME && t.account !== AccountType.LOAN),
-            expenseTransactions: sorted.filter(t => t.type === TransactionType.EXPENSE && t.account !== AccountType.LOAN),
-            loanTransactions: sorted.filter(t => t.account === AccountType.LOAN),
-        };
-    }, [transactionsThisMonth]);
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('ne-NP', { style: 'currency', currency: 'NPR' }).format(amount);
@@ -198,7 +170,7 @@ const MonthlyReport: React.FC<MonthlyReportProps> = ({ transactions }) => {
             </Card>
 
             <Card title="Transactions This Month">
-                {transactionsThisMonth.length > 0 ? (
+                {sortedTransactions.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8">
                         {/* Income Column */}
                         <div>

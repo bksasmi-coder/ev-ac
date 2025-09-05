@@ -3,8 +3,7 @@ import TransactionForm from './components/TransactionForm';
 import TransactionList from './components/TransactionList';
 import AccountSummary from './components/AccountSummary';
 import ProfitLossStatement from './components/ProfitLossStatement';
-import { useLocalStorage } from './hooks/useLocalStorage';
-import { Transaction, TransactionType, AccountType } from './types';
+import { Transaction, ServiceRecord } from './types';
 import EditTransactionModal from './components/EditTransactionModal';
 import MonthlyReport from './components/MonthlyReport';
 import BottomNavBar from './components/BottomNavBar';
@@ -16,25 +15,50 @@ import MoonIcon from './components/icons/MoonIcon';
 import { useAuth } from './hooks/useAuth';
 import LoginPage from './components/LoginPage';
 import LogoutIcon from './components/icons/LogoutIcon';
+import { useSimulatedCloudStorage } from './hooks/useSimulatedCloudStorage';
+import { useTransactionCalculations } from './hooks/useTransactionCalculations';
+import ServiceAndRepair from './components/ServiceAndRepair';
+
 
 function App() {
   const [isDark, toggleTheme] = useDarkMode();
   const { isAuthenticated, currentUser, login, logout, register, error: authError } = useAuth();
-  const [transactions, setTransactions] = useLocalStorage<Transaction[]>(`transactions_${currentUser}`, []);
+  
+  const initialTransactions = useMemo(() => [], []);
+  const transactionStorageKey = `transactions_${currentUser}`;
+  const {
+    data: transactions,
+    setData: setTransactions,
+    isLoading: isTransactionsLoading,
+    error: transactionsError
+  } = useSimulatedCloudStorage<Transaction[]>(transactionStorageKey, initialTransactions);
+
+  const initialServiceRecords = useMemo(() => [], []);
+  const serviceStorageKey = `service_records_${currentUser}`;
+  const {
+    data: serviceRecords,
+    setData: setServiceRecords,
+    isLoading: isServiceLoading,
+    error: serviceError
+  } = useSimulatedCloudStorage<ServiceRecord[]>(serviceStorageKey, initialServiceRecords);
+
+
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
-  const [activeView, setActiveView] = useState<'dashboard' | 'report'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'report' | 'service'>('dashboard');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [lastDescription, setLastDescription] = useState('');
 
   const handleAddTransaction = (transaction: Omit<Transaction, 'id'>) => {
-    const newTransaction: Transaction = {
-      ...transaction,
-      id: new Date().toISOString() + Math.random(),
-    };
+    const newTransaction = { ...transaction, id: crypto.randomUUID() };
     setTransactions(prev => [...prev, newTransaction]);
     setLastDescription(transaction.description);
     setIsAddModalOpen(false);
+  };
+  
+  const handleAddServiceRecord = (record: Omit<ServiceRecord, 'id'>) => {
+      const newRecord = { ...record, id: crypto.randomUUID() };
+      setServiceRecords(prev => [...prev, newRecord]);
   };
 
   const handleStartEdit = (transaction: Transaction) => {
@@ -50,11 +74,7 @@ function App() {
   };
 
   const handleUpdateTransaction = (updatedTransaction: Transaction) => {
-    setTransactions(prevTransactions =>
-      prevTransactions.map(t =>
-        t.id === updatedTransaction.id ? updatedTransaction : t
-      )
-    );
+    setTransactions(prev => prev.map(t => t.id === updatedTransaction.id ? updatedTransaction : t));
     setEditingTransaction(null);
   };
 
@@ -73,40 +93,10 @@ function App() {
       }
   };
 
+  const { totalIncome, totalExpenses, cashBalance, loanBalance } = useTransactionCalculations(transactions);
+  
+  const isLoading = isTransactionsLoading || isServiceLoading;
 
-  const { totalIncome, totalExpenses, cashBalance, loanBalance } = useMemo(() => {
-    return transactions.reduce((acc, t) => {
-        // P&L statement should only include operational income/expenses, not balance sheet changes like loans.
-        if (t.account !== AccountType.LOAN) {
-            if (t.type === TransactionType.INCOME) {
-                acc.totalIncome += t.amount;
-            } else {
-                acc.totalExpenses += t.amount;
-            }
-        }
-
-        // Account balance calculations
-        if (t.type === TransactionType.INCOME) {
-            if (t.account === AccountType.CASH) {
-                acc.cashBalance += t.amount;
-            } else if (t.account === AccountType.LOAN) {
-                acc.loanBalance += t.amount; // Taking a loan increases liability
-            }
-        } else { // EXPENSE
-            if (t.account === AccountType.CASH) {
-                acc.cashBalance -= t.amount;
-            } else if (t.account === AccountType.LOAN) {
-                acc.loanBalance -= t.amount; // Repaying a loan decreases liability
-            }
-        }
-        return acc;
-    }, {
-        totalIncome: 0,
-        totalExpenses: 0,
-        cashBalance: 0,
-        loanBalance: 0,
-    });
-  }, [transactions]);
 
   if (!isAuthenticated) {
     return <LoginPage onLogin={login} onRegister={register} authError={authError} />;
@@ -140,19 +130,39 @@ function App() {
           </div>
         </div>
       </header>
-
+      
       <main className="py-8 pb-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            {activeView === 'dashboard' ? (
-              <div className="space-y-8">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <AccountSummary cashBalance={cashBalance} loanBalance={loanBalance} />
-                    <ProfitLossStatement totalIncome={totalIncome} totalExpenses={totalExpenses} />
+            {isLoading && (
+                <div className="flex flex-col justify-center items-center h-64" aria-live="polite" aria-busy="true">
+                    <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div>
+                    <p className="ml-4 text-lg text-gray-600 dark:text-gray-400 mt-4">Loading your data...</p>
+                </div>
+            )}
+            
+            {(transactionsError || serviceError) && (
+                <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-8" role="alert">
+                    <p className="font-bold">Storage Error</p>
+                    <p>{transactionsError || serviceError}</p>
+                </div>
+            )}
+            
+            {!isLoading && !transactionsError && !serviceError && (
+              <>
+                {activeView === 'dashboard' ? (
+                  <div className="space-y-8">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <AccountSummary cashBalance={cashBalance} loanBalance={loanBalance} />
+                        <ProfitLossStatement totalIncome={totalIncome} totalExpenses={totalExpenses} />
+                      </div>
+                      <TransactionList transactions={transactions} onEdit={handleStartEdit} onDelete={handleRequestDelete} />
                   </div>
-                  <TransactionList transactions={transactions} onEdit={handleStartEdit} onDelete={handleRequestDelete} loanBalance={loanBalance} />
-              </div>
-            ) : (
-                <MonthlyReport transactions={transactions} />
+                ) : activeView === 'report' ? (
+                    <MonthlyReport transactions={transactions} />
+                ) : (
+                    <ServiceAndRepair records={serviceRecords} onAddRecord={handleAddServiceRecord} />
+                )}
+              </>
             )}
         </div>
       </main>

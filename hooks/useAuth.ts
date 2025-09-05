@@ -17,7 +17,7 @@ export function useAuth(): {
 } {
     const [currentUser, setCurrentUser] = useLocalStorage<string | null>('currentUser', null);
     const isAuthenticated = !!currentUser;
-    const [users, setUsers] = useLocalStorage<User[]>('users', [{ username: 'admin', password: 'password' }]);
+    const [users, setUsers] = useLocalStorage<User[]>('users', [{ username: 'Admin', password: '123456' }]);
     const [error, setError] = useState<string | null>(null);
 
     const login = (user: string, pass: string): boolean => {
